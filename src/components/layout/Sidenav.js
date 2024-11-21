@@ -22,12 +22,29 @@ function Sidenav({ color }) {
 
   return (
     <Menu theme="light" mode="inline">
+    {(decodedToken?.role === "user" || decodedToken?.role === "admin") && (
+      <>
+      <Menu.Item className="menu-item-header" key="1">
+        Chức năng
+      </Menu.Item>
+      <Menu.Item key="1">
+        <NavLink to="/detect">
+          <span
+            className="icon"
+            style={{ background: page === "detect" ? color : "" }}
+          >
+            <FaUser color={color} />
+          </span>
+          <span className="label">Gửi xe</span>
+        </NavLink>
+      </Menu.Item>
+      </>)}
       {decodedToken?.role === "admin" && (
         <>
           <Menu.Item className="menu-item-header" key="1">
             Quản lý
           </Menu.Item>
-          <Menu.Item key="3">
+          <Menu.Item key="1">
             <NavLink to="/customer">
               <span
                 className="icon"
@@ -60,6 +77,18 @@ function Sidenav({ color }) {
                 <FaListCheck color={color} />
               </span>
               <span className="label">User</span>
+            </NavLink>
+          </Menu.Item>
+
+          <Menu.Item key="4">
+            <NavLink to="/vehicle">
+              <span
+                className="icon"
+                style={{ background: page === "vehicle" ? color : "" }}
+              >
+                <FaListCheck color={color} />
+              </span>
+              <span className="label">Xe</span>
             </NavLink>
           </Menu.Item>
         </>

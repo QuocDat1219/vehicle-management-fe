@@ -8,7 +8,7 @@ const PageNotFound = () => (
     subTitle="Sorry, the page you visited does not exist."
     extra={
       <Button type="primary">
-        <Link to="/bras">
+        <Link to="/detect">
           <span>Trở lại</span>
         </Link>
       </Button>

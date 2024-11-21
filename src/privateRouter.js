@@ -31,19 +31,13 @@ const PrivateRoute = ({ component: Component, allowedRoles, ...rest }) => {
       {...rest}
       render={(props) => {
         if (!isLogin) {
-
           return <Redirect to="/login" />;
-
-        }
-        else if (role && !allowedRoles.includes(role)) {
-
-          return <Redirect to="/PageNotFound" />;
+        } else if (role && !allowedRoles.includes(role)) {
+          return <Redirect to="/detect" />;
         } else {
-
           return <Component {...props} />;
         }
-      }
-      }
+      }}
     />
   );
 };

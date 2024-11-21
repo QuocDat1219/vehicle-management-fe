@@ -47,7 +47,7 @@ instance.interceptors.response.use(
           maskClosable: false, // Ngăn không cho đóng modal bằng cách click ra ngoài
           closable: false, // Ngăn không cho đóng modal bằng cách click nút đóng
         });
-        
+
         setTimeout(() => {
           modalVisible = false;
           cookies.remove("token");

@@ -12,6 +12,8 @@ import {
   Space,
   Tag,
   Table,
+  Typography,
+  Descriptions,
 } from "antd";
 import { useForm } from "antd/lib/form/Form";
 import { useEffect, useState } from "react";
@@ -33,6 +35,7 @@ const User = () => {
   const [openDrawer, setOpenDrawer] = useState(false);
   const [openEditvehicleDrawer, setOpenEditVehicleDrawer] = useState(false);
   const [currentRecord, setCurrentRecord] = useState(null);
+  const [onOpenUserDetailDrawer, setOpenUserDetailDrawer] = useState(false);
   const [data, setData] = useState([]);
   const [selectedVehicles, setSelectedVehicles] = useState([]);
   const [vehicleList, setVehicleList] = useState([]);
@@ -75,7 +78,7 @@ const User = () => {
     setData(dataUser);
   }, [dataUser]);
 
-  //Load dữ liệu người dùng đăng ký
+  //Load dữ liệu phương tiện
   const { data: dataVehicle, loading: loadingVehicle } = useAsync(() =>
     ServiceVehicle.getAllvehicle()
   );
@@ -91,7 +94,7 @@ const User = () => {
       dataIndex: "full_name",
       key: "full_name",
       render: (text) => (
-        <div style={{ wordWrap: 'break-word', wordBreak: 'break-word' }}>
+        <div style={{ wordWrap: "break-word", wordBreak: "break-word" }}>
           {text}
         </div>
       ),
@@ -117,9 +120,30 @@ const User = () => {
       key: "vehicle",
       render: (vehicles) =>
         vehicles.map((v) => (
-          <Tag color="green" style={{ fontWeight: "bold" }} key={v._id}>
-            {v.number_plate + '\n'} 
-          </Tag>
+          <div key={v._id}>
+            {/* Container div */}
+            <div style={{ marginTop: "10px" }}>
+              <Tag color="green" key={v._id}>
+                {v.number_plate}
+              </Tag>
+              <div>
+                <Descriptions.Item>
+                  Giấy phép:{" "}
+                  <Typography.Text style={{ fontWeight: "bold" }}>
+                    {v.license_name}
+                  </Typography.Text>
+                </Descriptions.Item>
+              </div>
+              <div>
+                <Descriptions.Item>
+                  Loại phương tiện:{" "}
+                  <Typography.Text style={{ fontWeight: "bold" }}>
+                    {v.vehicle_type}
+                  </Typography.Text>
+                </Descriptions.Item>
+              </div>
+            </div>
+          </div>
         )),
     },
     {
@@ -142,21 +166,46 @@ const User = () => {
       dataIndex: "action",
       key: "action",
       render: (text, record) => (
-        <Space>
-          <Button
-            style={{ backgroundColor: "green" }}
-            type="primary"
-            onClick={() => openEditDrawer(record)}
+        <div>
+          {/* Grouping Sửa and Xóa buttons */}
+          <Space
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: "5px",
+            }}
           >
-            Sửa
-          </Button>
-          <Button danger onClick={() => showDeleteModal(record)}>
-            Xóa
-          </Button>
-          <Button onClick={() => openEditVehicleDrawer(record)} type="dashed">
+            <Button
+              style={{ backgroundColor: "green" }}
+              type="primary"
+              onClick={() => openEditDrawer(record)}
+            >
+              Sửa
+            </Button>
+            <Button danger onClick={() => showDeleteModal(record)}>
+              Xóa
+            </Button>
+          </Space>
+
+          {/* Đổi biển số button positioned below */}
+          <Button
+            onClick={() => openEditVehicleDrawer(record)}
+            type="dashed"
+            style={{ width: "100%", marginTop: "5px", marginBottom: "5px" }}
+          >
             Đổi biển số
           </Button>
-        </Space>
+          <div>
+            {" "}
+            <Button
+              onClick={() => openUserDetailDrawer(record)}
+              style={{ width: "100%" }}
+            >
+              Chi tiết
+            </Button>
+          </div>
+          {/* Chi tiết button positioned below Đổi biển số */}
+        </div>
       ),
     },
   ];
@@ -228,6 +277,21 @@ const User = () => {
     setOpenEditVehicleDrawer(false);
     form3.resetFields();
   };
+
+  //Bật drawer
+  const openUserDetailDrawer = async (record) => {
+    const res = await ServiceUser.getUser(record._id);
+    console.log(res);
+    if (res) {
+      setCurrentRecord(res);
+      setOpenUserDetailDrawer(true);
+    }
+  };
+
+  const closeUserDetailDrawer = () => {
+    setOpenUserDetailDrawer(false);
+  };
+
   //Sửa thông tin khách hàng
   useEffect(() => {
     if (currentRecord && currentRecord.vehicle) {
@@ -316,15 +380,11 @@ const User = () => {
         setLoading(false);
         closeEditVehicleDrawer();
       }
-    } catch (error) {;      
+    } catch (error) {
       setLoading(false);
       message.error(error.response.data.detail.msg);
       closeEditVehicleDrawer();
     }
-  };
-  const changePasswordDefault = async (record) => {
-    setSelectedRecord(record);
-    setIsModalVisible2(true);
   };
 
   return (
@@ -562,6 +622,74 @@ const User = () => {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <Drawer
+        title="Chi tiết khách hàng"
+        width={400}
+        onClose={closeUserDetailDrawer}
+        visible={onOpenUserDetailDrawer}
+      >
+        <Descriptions
+          bordered
+          column={1}
+          size="mall"
+          labelStyle={{ fontWeight: "bold" }}
+        >
+          <Descriptions.Item label="Họ tên">
+            {currentRecord?.full_name || "rỗng"}
+          </Descriptions.Item>
+          <Descriptions.Item label="Số căn cước">
+            {currentRecord?.identity_card || "rỗng"}
+          </Descriptions.Item>
+          <Descriptions.Item label="Địa chỉ">
+            {currentRecord?.address || "rỗng"}
+          </Descriptions.Item>
+          <Descriptions.Item label="Số điện thoại">
+            {currentRecord?.phone || "rỗng"}
+          </Descriptions.Item>
+          <Descriptions.Item label="Phương tiện">
+            {currentRecord?.vehicle && currentRecord.vehicle.length > 0 ? (
+              currentRecord.vehicle.map((v) => (
+                <div>
+                  <Tag color="green" key={v._id}>
+                    {v.number_plate}
+                  </Tag>
+                  <div style={{ marginTop: "5px" }}>
+                    <Descriptions.Item>
+                      Giấy phép:{" "}
+                      <Typography.Text>{v.license_name}</Typography.Text>
+                    </Descriptions.Item>
+                  </div>
+                  <div>
+                    <Descriptions.Item>
+                      Loại phương tiện:{" "}
+                      <Typography.Text>{v.vehicle_type}</Typography.Text>
+                    </Descriptions.Item>
+                  </div>
+                  <br />
+                </div>
+              ))
+            ) : (
+              <Typography.Text type="secondary">rỗng</Typography.Text>
+            )}
+          </Descriptions.Item>
+
+          <Descriptions.Item label="Ngày tạo">
+            {currentRecord?.created_at &&
+            !isNaN(new Date(currentRecord?.created_at).getTime())
+              ? new Date(currentRecord?.created_at).toLocaleString()
+              : "00:00"}
+          </Descriptions.Item>
+
+          <Descriptions.Item label="Ngày cập nhật">
+            {currentRecord?.updated_at &&
+            !isNaN(new Date(currentRecord?.updated_at).getTime())
+              ? new Date(currentRecord?.updated_at).toLocaleString()
+              : "00:00"}
+          </Descriptions.Item>
+        </Descriptions>
+      </Drawer>
+
       <Modal
         title="Xác nhận xóa khách hàng"
         visible={isModalVisible}

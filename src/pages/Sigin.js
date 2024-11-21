@@ -30,12 +30,14 @@ const SignIn = () => {
     };
     try {
       const res = await ServiceUser.userLogin(data);
+      console.log(res.role);
+
       if (res.access_token) {
         cookies.set("token", res.access_token);
-        if (res.role === "user bras") {
-          history.push("/bras"); // Chuyển hướng đến trang Bras
+        if (res.role === "user") {
+          history.push("/detect");
         } else {
-          history.push("/"); // Chuyển hướng đến trang chủ hoặc trang khác
+          history.push("/user");
         }
         message.success("Đăng nhập thành công");
       } else {
@@ -45,7 +47,7 @@ const SignIn = () => {
       }
     } catch (error) {
       console.error(error.message);
-      message.error("Đã xảy ra lỗi, hãy thử lại");
+      message.error("Sai tên tài khoản hoặc mật khẩu. Vui lòng kiểm tra lại");
     }
   };
 
@@ -112,7 +114,12 @@ const SignIn = () => {
             lg={{ span: 12 }}
             md={{ span: 12 }}
           >
-            <img src={"https://eliteextra.com/wp-content/uploads/2022/10/8-essential-features-of-fleet-management-software-1.jpg"} alt="" />
+            <img
+              src={
+                "https://eliteextra.com/wp-content/uploads/2022/10/8-essential-features-of-fleet-management-software-1.jpg"
+              }
+              alt=""
+            />
           </Col>
         </Row>
       </Content>

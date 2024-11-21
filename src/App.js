@@ -9,6 +9,8 @@ import PageNotFound from "./pages/PageNotFound";
 import User from "./pages/User";
 import Customer from "./pages/Customer";
 import ParkingCard from "./pages/ParkingCard";
+import Vehicle from "./pages/Vehicle";
+import DetectionVehicle from "./pages/DetectionVehicle";
 
 function App() {
   return (
@@ -18,6 +20,12 @@ function App() {
 
         <Main>
           <Switch>
+            <PrivateRoute
+              exact
+              path="/detect"
+              component={DetectionVehicle}
+              allowedRoles={["user", "admin"]}
+            />
             <PrivateRoute
               exact
               path="/user"
@@ -34,6 +42,12 @@ function App() {
               exact
               path="/card"
               component={ParkingCard}
+              allowedRoles={["admin"]}
+            />
+            <PrivateRoute
+              exact
+              path="/vehicle"
+              component={Vehicle}
               allowedRoles={["admin"]}
             />
             <Route path="*" component={PageNotFound} />
