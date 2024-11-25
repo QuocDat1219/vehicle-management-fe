@@ -1,6 +1,6 @@
 import { Menu } from "antd";
 import { NavLink, useLocation } from "react-router-dom";
-import { FaRegCreditCard, FaUser } from "react-icons/fa";
+import { FaRegCreditCard, FaUser, FaCar, FaMoneyBillAlt,FaClock} from "react-icons/fa";
 import { FaListCheck } from "react-icons/fa6";
 import Cookies from "universal-cookie";
 import { useEffect, useState } from "react";
@@ -86,9 +86,33 @@ function Sidenav({ color }) {
                 className="icon"
                 style={{ background: page === "vehicle" ? color : "" }}
               >
-                <FaListCheck color={color} />
+                <FaCar color={color} />
               </span>
               <span className="label">Xe</span>
+            </NavLink>
+          </Menu.Item>
+
+          <Menu.Item key="5">
+            <NavLink to="/fee">
+              <span
+                className="icon"
+                style={{ background: page === "fee" ? color : "" }}
+              >
+                <FaMoneyBillAlt color={color} />
+              </span>
+              <span className="label">Phí</span>
+            </NavLink>
+          </Menu.Item>
+          
+          <Menu.Item key="5">
+            <NavLink to="/history">
+              <span
+                className="icon"
+                style={{ background: page === "history" ? color : "" }}
+              >
+                <FaClock color={color} />
+              </span>
+              <span className="label">Lịch sử</span>
             </NavLink>
           </Menu.Item>
         </>

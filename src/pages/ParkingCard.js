@@ -698,10 +698,19 @@ const ParkingCard = () => {
           </Descriptions.Item>
 
           <Descriptions.Item label="Thời gian vào">
-            {currentRecord?.entrance_time &&
-            !isNaN(new Date(currentRecord?.entrance_time).getTime())
-              ? new Date(currentRecord.entrance_time).toLocaleString()
-              : "00:00"}
+            {currentRecord?.entrance_time}
+          </Descriptions.Item>
+
+          <Descriptions.Item label="Ảnh phương tiện">
+            <div>
+              <img src={currentRecord?.vehicle_img}/>
+            </div>
+          </Descriptions.Item>
+
+          <Descriptions.Item label="Ảnh khuôn mặt">
+          <div>
+              <img src={currentRecord?.user_img}/>
+            </div>
           </Descriptions.Item>
 
           <Descriptions.Item label="Ngày tạo">

@@ -19,7 +19,7 @@ const ServiceParkingCard = {
   detectVehicle: async (formData) => {
     // Sử dụng formData trực tiếp
     console.log(formData);
-    
+
     return requests.put(`/card/detect`, formData, {
       headers: {
         "Content-Type": "multipart/form-data",

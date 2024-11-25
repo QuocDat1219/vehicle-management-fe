@@ -138,7 +138,7 @@ const Vehicle = () => {
           >
             Sửa
           </Button>
-         
+
           <Button danger onClick={() => showDeleteModal(record)}>
             Xóa
           </Button>
@@ -317,7 +317,7 @@ const Vehicle = () => {
               placeholder="Chọn loại phương tiện"
             >
               <Select.Option value={"Car"}>Xe ô tô</Select.Option>
-              <Select.Option value={"Motorcycle"}>Xe gắn máy</Select.Option>
+              <Select.Option value={"Motocycle"}>Xe gắn máy</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item>
@@ -382,7 +382,7 @@ const Vehicle = () => {
               placeholder="Chọn loại phương tiện"
             >
               <Select.Option value={"Car"}>Xe ô tô</Select.Option>
-              <Select.Option value={"Motorcycle"}>Xe gắn máy</Select.Option>
+              <Select.Option value={"Motocycle"}>Xe gắn máy</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item>

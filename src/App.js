@@ -11,7 +11,8 @@ import Customer from "./pages/Customer";
 import ParkingCard from "./pages/ParkingCard";
 import Vehicle from "./pages/Vehicle";
 import DetectionVehicle from "./pages/DetectionVehicle";
-
+import Fee from "./pages/Fee";
+import History from './pages/History';
 function App() {
   return (
     <div className="App">
@@ -48,6 +49,18 @@ function App() {
               exact
               path="/vehicle"
               component={Vehicle}
+              allowedRoles={["admin"]}
+            />
+             <PrivateRoute
+              exact
+              path="/fee"
+              component={Fee}
+              allowedRoles={["admin"]}
+            />
+             <PrivateRoute
+              exact
+              path="/history"
+              component={History}
               allowedRoles={["admin"]}
             />
             <Route path="*" component={PageNotFound} />

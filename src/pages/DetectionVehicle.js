@@ -12,172 +12,306 @@ import {
   Typography,
   Descriptions,
 } from "antd";
-import { CameraOutlined, PoweroffOutlined } from "@ant-design/icons";
+
 import ServiceParkingCard from "../service/ServiceParkingCard";
 import axios from "axios";
+import { v2 as cloudinary } from "cloudinary";
+import moment from "moment";
+
 const DetectionVehicle = () => {
   const [loading, setLoading] = useState(false);
-  const [cameraOn, setCameraOn] = useState(false);
-  const [cardId, setCardId] = useState("");
   const [dataEntry, setDataEntry] = useState("");
   const [dataExit, setDataExit] = useState("");
-  const [capturedPlateIn, setCapturedPlateIn] = useState(null);
-  const [capturedFaceIn, setCapturedFaceIn] = useState(null);
   const [capturedPlate, setCapturedPlate] = useState(null);
   const [capturedFace, setCapturedFace] = useState(null);
-  const [form] = Form.useForm();
+  const [capturedPlateIn, setCapturedPlateIn] = useState(null);
+  const [capturedFaceIn, setCapturedFaceIn] = useState(null);
+
+  const plateInVideoRef = useRef(null);
+  const faceInVideoRef = useRef(null);
   const plateVideoRef = useRef(null);
   const faceVideoRef = useRef(null);
+
+  const plateInCanvasRef = useRef(null);
+  const faceInCanvasRef = useRef(null);
   const plateCanvasRef = useRef(null);
   const faceCanvasRef = useRef(null);
-  const cardIdInputRef = useRef(null);
-  const { Title } = Typography;
+
+  const [form] = Form.useForm();
+
   useEffect(() => {
-    // Auto-focus on the Card ID input field when component mounts
-    if (cardIdInputRef.current) {
-      cardIdInputRef.current.focus();
-    }
+    cloudinary.config({
+      cloud_name: process.env.REACT_APP_CLOUD_NAME,
+      api_key: process.env.REACT_APP_CLOUDINARY_API_KEY,
+      api_secret: process.env.REACT_APP_CLOUDINARY_API_SECRET,
+    });
+
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
+        if (plateInVideoRef.current) plateInVideoRef.current.srcObject = stream;
+        if (faceInVideoRef.current) faceInVideoRef.current.srcObject = stream;
+        if (plateVideoRef.current) plateVideoRef.current.srcObject = stream;
+        if (faceVideoRef.current) faceVideoRef.current.srcObject = stream;
+      } catch (error) {
+        message.error("Không thể truy cập camera.");
+      }
+    };
+
+    startCamera();
+
+    return () => {
+      const stopCamera = () => {
+        const streams = [
+          plateInVideoRef.current?.srcObject,
+          faceInVideoRef.current?.srcObject,
+          plateVideoRef.current?.srcObject,
+          faceVideoRef.current?.srcObject,
+        ];
+        streams.forEach((stream) =>
+          stream?.getTracks().forEach((track) => track.stop())
+        );
+      };
+      stopCamera();
+    };
   }, []);
 
-  // Function to start the camera
-  const startCamera = async (type) => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (type === "plate" && plateVideoRef.current) {
-        plateVideoRef.current.srcObject = stream;
-      } else if (type === "face" && faceVideoRef.current) {
-        faceVideoRef.current.srcObject = stream;
+  useEffect(() => {
+    let buffer = ""; // Bộ đệm để lưu dãy số thẻ
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Enter") {
+        // Khi Enter được nhấn, xử lý dãy số
+        if (buffer) {
+          handleSubmit(buffer); // Gọi hàm xử lý thẻ
+          buffer = ""; // Reset bộ đệm
+        }
+      } else {
+        // Thêm ký tự vào bộ đệm nếu là số
+        if (!isNaN(event.key)) {
+          buffer += event.key;
+        }
       }
-      setCameraOn(true);
-    } catch (error) {
-      message.error("Could not access camera");
-    }
-  };
+    };
 
-  // Function to stop the camera
-  const stopCamera = (type) => {
-    let stream = null;
-    if (type === "plate" && plateVideoRef.current) {
-      stream = plateVideoRef.current.srcObject;
-    } else if (type === "face" && faceVideoRef.current) {
-      stream = faceVideoRef.current.srcObject;
-    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      if (type === "plate") {
-        plateVideoRef.current.srcObject = null;
-      } else if (type === "face") {
-        faceVideoRef.current.srcObject = null;
-      }
-    }
-    setCameraOn(false);
-  };
+  const formatDateTime = (dateTimeString) => {
+    if (!dateTimeString) return { date: "", time: "" };
 
-  // Toggle camera on/off
-  const toggleCamera = () => {
-    if (cameraOn) {
-      stopCamera("plate");
-      stopCamera("face");
-    } else {
-      startCamera("plate");
-      startCamera("face");
-    }
+    const [date, time] = dateTimeString.split(" ");
+    return { date, time };
   };
 
   // Capture image from video stream
-  const captureImage = (type) => {
-    const canvas =
-      type === "plate" ? plateCanvasRef.current : faceCanvasRef.current;
-    const video =
-      type === "plate" ? plateVideoRef.current : faceVideoRef.current;
-    const context = canvas.getContext("2d");
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = canvas.toDataURL("image/png");
-    if (type === "plate") {
-      setCapturedPlate(imageData);
-    } else {
-      setCapturedFace(imageData);
-    }
+  const captureImagePlate = (plateCanvasRef) => {
+    const plateCanvas = plateCanvasRef.current;
+    const plateContext = plateCanvas.getContext("2d");
+    plateContext.drawImage(
+      plateVideoRef.current,
+      0,
+      0,
+      plateCanvas.width,
+      plateCanvas.height
+    );
+    const imageData = plateCanvas.toDataURL("image/png");
+    setCapturedPlate(imageData); // Lưu ảnh vào state
+    return imageData;
+  };
+  // Capture image from video stream
+  const captureImageFace = (faceCanvasRef) => {
+    const faceCanvas = faceCanvasRef.current;
+    const faceContext = faceCanvas.getContext("2d");
+    faceContext.drawImage(
+      faceVideoRef.current,
+      0,
+      0,
+      faceCanvas.width,
+      faceCanvas.height
+    );
+    const imageData = faceCanvas.toDataURL("image/png");
+    setCapturedFace(imageData); // Lưu ảnh vào state
     return imageData;
   };
 
-  const handleSubmit = async () => {
-    setLoading(true);
+  const uploadToCloudinary = async (imageData, folder) => {
+    const blob = await (await fetch(imageData)).blob();
 
-    if (!cameraOn) {
-      message.error("Vui lòng bật camera trước khi xác nhận.");
-      setLoading(false);
-      return;
-    }
-
-    const plateImageData = captureImage("plate");
-    const faceImageData = captureImage("face");
-
-    if (!plateImageData || !faceImageData || !cardId) {
-      message.error("Không tìm thấy thẻ hoặc ảnh từ camera.");
-      setLoading(false);
-      return;
-    }
-
-    const plateBlob = await (await fetch(plateImageData)).blob();
-    const faceBlob = await (await fetch(faceImageData)).blob();
     const formData = new FormData();
-    formData.append("id_card", cardId);
-    formData.append("entrance_time", new Date().toISOString());
-    formData.append(
-      "plate_file",
-      new File([plateBlob], "plate.png", { type: "image/png" })
-    );
-    formData.append(
-      "face_file",
-      new File([faceBlob], "face.png", { type: "image/png" })
-    );
 
-    // Kiểm tra FormData trước khi gửi
-    for (let pair of formData.entries()) {
-      console.log(pair[0] + ": " + pair[1]);
-    }
+    // Tạo một tên file duy nhất bằng cách thêm timestamp
+    const uniqueName = `vehicle_${Date.now()}.png`; // Đảm bảo tên ảnh là duy nhất mỗi lần upload
+
+    formData.append(
+      "file",
+      new File([blob], uniqueName, { type: "image/png" })
+    );
+    formData.append(
+      "upload_preset",
+      process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET
+    );
+    formData.append("folder", folder);
 
     try {
-      const response = await axios.put(
-        `${process.env.REACT_APP_API}/card/detect`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+      const response = await axios.post(
+        `https://api.cloudinary.com/v1_1/${process.env.REACT_APP_CLOUD_NAME}/image/upload`,
+        formData
       );
-      if (response.data && response.data.detail.msg === "Entry Successfully") {
-        setDataEntry(response.data.detail.data);
-        setDataExit("");
-        message.success("Gửi xe thành công!");
-        form.resetFields();
-        cardIdInputRef.current.focus();
-      } else if (
-        response.data &&
-        response.data.detail.msg === "Exited Successfully"
-      ) {
-        setDataExit(response.data.detail.data);
-        setDataEntry("");
-        message.success("Lấy xe thành công!");
-        form.resetFields();
-        cardIdInputRef.current.focus();
-      } else {
-        message.error("Đã xảy ra lỗi!");
-      }
+      return response.data.secure_url; // Trả về URL ảnh đã upload
     } catch (error) {
-      console.log(error.message);
-      message.error("Đã xảy ra lỗi!");
-      form.resetFields();
-      cardIdInputRef.current.focus();
-    } finally {
-      setLoading(false);
-      form.resetFields();
-      cardIdInputRef.current.focus();
+      console.error("Error uploading image:", error);
+      throw new Error("Upload to Cloudinary failed");
     }
   };
+
+  const handleSubmit = async (cardId) => {
+    message.info(cardId);
+
+    setLoading(true);
+
+    const checkCardRes = await ServiceParkingCard.getParkingCard(cardId);
+
+    //Kiểm tra trạng thái thẻ
+    if (checkCardRes.status === "Not Use") {
+      const plateImageData = captureImagePlate(plateInCanvasRef);
+      const faceImageData = captureImageFace(faceInCanvasRef);
+      setCapturedPlateIn(plateImageData);
+      setCapturedFaceIn(faceImageData);
+
+      if (!plateImageData || !faceImageData) {
+        message.error("Không chụp được ảnh");
+        setLoading(false);
+        return;
+      }
+      if (!cardId) {
+        message.error("Không tìm thấy id thẻ");
+        setLoading(false);
+        return;
+      }
+      try {
+        // Convert images to Blob
+        const plateBlob = await (await fetch(plateImageData)).blob();
+        const plateUrl = await uploadToCloudinary(plateImageData, "parking");
+        const faceUrl = await uploadToCloudinary(faceImageData, "parking");
+
+        const file_data = new File([plateBlob], "capture.png", {
+          type: "image/png",
+        });
+        const formattedTime = moment(new Date().toISOString()).format(
+          "DD/MM/YYYY HH:mm:ss"
+        );
+        const formData = {
+          id_card: cardId,
+          entrance_time: formattedTime,
+          vehicle_img: plateUrl,
+          user_img: faceUrl,
+          file: file_data,
+        };
+        const response = await axios.put(
+          `${process.env.REACT_APP_API}/card/entry`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+
+        if (
+          response.data &&
+          response.data.detail.msg === "Entry Successfully"
+        ) {
+          setDataEntry(response.data.detail.data);
+          setDataExit("");
+          message.success("Gửi xe thành công!");
+          form.resetFields();
+        } else {
+          message.error("Đã xảy ra lỗi!");
+        }
+      } catch (error) {
+        console.error("Error uploading or sending data:", error);
+        message.error("Đã xảy ra lỗi!");
+      } finally {
+        setLoading(false);
+        form.resetFields();
+      }
+    } else {
+      const plateImageData = captureImagePlate(plateCanvasRef);
+      const faceImageData = captureImageFace(faceCanvasRef);
+      setCapturedPlate(plateImageData);
+      setCapturedFace(faceImageData);
+
+      if (!plateImageData || !faceImageData || !cardId) {
+        message.error("Không tìm thấy thẻ hoặc ảnh từ camera.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Convert images to Blob
+        const plateBlob = await (await fetch(plateImageData)).blob();
+        const plateUrl = await uploadToCloudinary(plateImageData, "parking");
+        const faceUrl = await uploadToCloudinary(faceImageData, "parking");
+
+        const file_data = new File([plateBlob], "capture.png", {
+          type: "image/png",
+        });
+
+        const formattedTime = moment(new Date()).format("DD/MM/YYYY HH:mm:ss");
+        const formData = {
+          id_card: cardId,
+          exit_time: formattedTime,
+          vehicle_img: plateUrl,
+          user_img: faceUrl,
+          file: file_data,
+        };
+
+        const response = await axios.put(
+          `${process.env.REACT_APP_API}/card/exit`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+        console.log(response);
+
+        if (
+          response.data &&
+          response.data.detail.msg === "Exited Successfully"
+        ) {
+          setDataExit(response.data.detail.data);
+          setDataEntry("");
+          message.success("Lấy xe thành công!");
+          form.resetFields();
+        } else {
+          message.error("Đã xảy ra lỗi!");
+        }
+      } catch (error) {
+        console.log(error.message);
+        message.error("Đã xảy ra lỗi!");
+        form.resetFields();
+      } finally {
+        setLoading(false);
+        form.resetFields();
+      }
+    }
+  };
+
+  const { date: dateIn, time: timeIn } = formatDateTime(
+    dataExit?.entrance_time
+  );
+  const { date: dateEntranceOut, time: EntranceOut } = formatDateTime(
+    dataExit?.entrance_time
+  );
+  const { date: dateOut, time: timeOut } = formatDateTime(dataExit?.exit_time);
 
   return (
     <div>
@@ -190,39 +324,28 @@ const DetectionVehicle = () => {
             // title="Theo dõi phương tiện"
           >
             <Form layout="vertical" form={form} onFinish={handleSubmit}>
-              <Form.Item
-                label="Thẻ"
-                name="id_card"
-                rules={[{ required: true, message: "Vui lòng nhập id thẻ" }]}
-              >
-                <Input
-                  placeholder="Quét hoặc nhập id thẻ"
-                  ref={cardIdInputRef}
-                  onChange={(e) => setCardId(e.target.value)}
-                />
-              </Form.Item>
               <Space>
-                <Form.Item label="Camera biển số">
+                <Form.Item label="Camera biển số (Xe vào)">
                   <video
-                    ref={plateVideoRef}
+                    ref={plateInVideoRef}
                     autoPlay
                     style={{ width: "300px", borderRadius: "8px" }}
                   />
                   <canvas
-                    ref={plateCanvasRef}
+                    ref={plateInCanvasRef}
                     style={{ display: "none" }}
                     width="640"
                     height="480"
                   />
                 </Form.Item>
-                <Form.Item label="Camera khuôn mặt">
+                <Form.Item label="Camera khuôn mặt (Xe vào)">
                   <video
-                    ref={faceVideoRef}
+                    ref={faceInVideoRef}
                     autoPlay
                     style={{ width: "300px", borderRadius: "8px" }}
                   />
                   <canvas
-                    ref={faceCanvasRef}
+                    ref={faceInCanvasRef}
                     style={{ display: "none" }}
                     width="640"
                     height="480"
@@ -236,7 +359,7 @@ const DetectionVehicle = () => {
                     <img
                       src={capturedPlateIn}
                       alt="Captured"
-                      style={{ maxWidth: "100%", maxHeight: "400px" }}
+                      style={{ width: "300px", height: "200px" }}
                     />
                   </div>
                 )}
@@ -246,7 +369,7 @@ const DetectionVehicle = () => {
                     <img
                       src={capturedFaceIn}
                       alt="Captured"
-                      style={{ maxWidth: "100%", maxHeight: "400px" }}
+                      style={{ width: "300px", height: "200px" }}
                     />
                   </div>
                 )}
@@ -263,20 +386,32 @@ const DetectionVehicle = () => {
                 size="mall"
                 labelStyle={{ fontWeight: "bold" }}
               >
-                <Descriptions.Item label="Khách hàng">
-                  {dataEntry?.user_card || "Đang chờ"}
-                </Descriptions.Item>
+                <Descriptions.Item label="Ngày vào">{dateIn}</Descriptions.Item>
+                <Descriptions.Item label="Giờ vào">{timeIn}</Descriptions.Item>
                 <Descriptions.Item label="Phương tiện vào">
                   {dataEntry?.vehicle_plate || "Đang chờ"}
                 </Descriptions.Item>
-
-                <Descriptions.Item label="Thời gian vào">
-                  {dataEntry?.entrance_time &&
-                  !isNaN(new Date(dataEntry?.entrance_time).getTime())
-                    ? new Date(dataEntry?.entrance_time).toLocaleString()
-                    : "00:00"}
-                </Descriptions.Item>
               </Descriptions>
+              <Card>
+                <Descriptions>
+                  <Descriptions.Item
+                    label="Ảnh biển số"
+                    style={{
+                      marginTop: "auto",
+                      marginBottom: "auto",
+                    }}
+                  >
+                    <div
+                      style={{
+                        maxHeight: "150px",
+                        maxWidth: "150px",
+                      }}
+                    >
+                      <img src={dataEntry?.vehicle_img} />
+                    </div>
+                  </Descriptions.Item>
+                </Descriptions>
+              </Card>
             </Card>
           </Card>
         </Col>
@@ -289,17 +424,6 @@ const DetectionVehicle = () => {
             // title="Theo dõi phương tiện"
           >
             <Form layout="vertical" form={form} onFinish={handleSubmit}>
-              <Form.Item
-                label="Thẻ"
-                name="id_card"
-                rules={[{ required: true, message: "Vui lòng nhập id thẻ" }]}
-              >
-                <Input
-                  placeholder="Quét hoặc nhập id thẻ"
-                  ref={cardIdInputRef}
-                  onChange={(e) => setCardId(e.target.value)}
-                />
-              </Form.Item>
               <Space>
                 <Form.Item label="Camera biển số">
                   <video
@@ -335,7 +459,7 @@ const DetectionVehicle = () => {
                     <img
                       src={capturedPlate}
                       alt="Captured"
-                      style={{ maxWidth: "100%", maxHeight: "400px" }}
+                      style={{ width: "300px", height: "200px" }}
                     />
                   </div>
                 )}
@@ -345,7 +469,7 @@ const DetectionVehicle = () => {
                     <img
                       src={capturedFace}
                       alt="Captured"
-                      style={{ maxWidth: "100%", maxHeight: "400px" }}
+                      style={{ width: "300px", height: "200px" }}
                     />
                   </div>
                 )}
@@ -356,51 +480,63 @@ const DetectionVehicle = () => {
               style={{ textAlign: "center" }}
               // title="Xe ra bãi"
             >
-              <Card>
-                <Space>
+              <Space>
+                <Descriptions
+                  bordered
+                  column={1}
+                  size="mall"
+                  labelStyle={{ fontWeight: "bold" }}
+                >
+                  <Descriptions.Item label="Ngày vào">
+                    {dateEntranceOut}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Giờ vào">
+                    {EntranceOut}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Phương tiện vào">
+                    {dataExit?.vehicle_plate_entry || "Đang chờ"}
+                  </Descriptions.Item>
+                </Descriptions>
+              </Space>
+              <Space>
+                <Descriptions
+                  bordered
+                  column={1}
+                  size="mall"
+                  labelStyle={{ fontWeight: "bold" }}
+                >
+                  <Descriptions.Item label="Ngày ra">
+                    {dateOut}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Giờ">
+                    {timeOut}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Phương tiện ra">
+                    {dataExit?.vehicle_plate_exit || "Đang chờ"}
+                  </Descriptions.Item>
+                </Descriptions>
+              </Space>
+            </Card>
+            <Card>
+              <Space>
+                <div>
+                  {" "}
                   <Descriptions
                     bordered
                     column={1}
                     size="mall"
                     labelStyle={{ fontWeight: "bold" }}
                   >
-                    <Descriptions.Item label="Thời gian vào">
-                      {dataExit?.entrance_time &&
-                      !isNaN(new Date(dataExit?.entrance_time).getTime())
-                        ? new Date(dataExit?.entrance_time).toLocaleString()
-                        : "00:00"}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Phương tiện vào">
-                      {dataExit?.vehicle_plate || "Đang chờ"}
-                    </Descriptions.Item>
-                  </Descriptions>
-                </Space>
-                <Space>
-                  <Descriptions
-                    bordered
-                    column={1}
-                    size="mall"
-                    labelStyle={{ fontWeight: "bold" }}
-                  >
-                    <Descriptions.Item label="Thời gian ra">
-                      {dataExit?.entrance_time &&
-                      !isNaN(new Date(dataExit?.entrance_time).getTime())
-                        ? new Date(dataExit?.entrance_time).toLocaleString()
-                        : "00:00"}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Phương tiện ra">
-                      {dataExit?.vehicle_plate || "Đang chờ"}
-                    </Descriptions.Item>
-                  </Descriptions>
-                </Space>
-              </Card>
-              <Card>
-                <Space>
-                  <Descriptions>
                     <Descriptions.Item label="Phí">
                       <Typography.Text
                         type="secondary"
-                        style={{ color: "#d63031", fontSize: "20px" }}
+                        style={{
+                          color: "#d63031",
+                          fontSize: "20px",
+                          textAlign: "center",
+                          marginLeft: "auto",
+                          marginRight: "auto",
+                        }}
                       >
                         {" "}
                         {new Intl.NumberFormat("vi-VN", {
@@ -410,43 +546,29 @@ const DetectionVehicle = () => {
                       </Typography.Text>
                     </Descriptions.Item>
                   </Descriptions>
-                </Space>
-              </Card>
+                </div>
+                <Descriptions
+                  bordered
+                  column={1}
+                  size="mall"
+                  labelStyle={{ fontWeight: "bold" }}
+                >
+                  <Descriptions.Item label="Ảnh biển số">
+                    <div
+                      style={{
+                        maxHeight: "150px",
+                        maxWidth: "150px",
+                      }}
+                    >
+                      <img src={dataExit?.vehicle_img} />
+                    </div>
+                  </Descriptions.Item>
+                </Descriptions>
+              </Space>
             </Card>
           </Card>
         </Col>
       </Row>
-      {/* Hiển thị ảnh đã chụp */}
-
-      <Space
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <Button
-          type="default"
-          icon={<PoweroffOutlined />}
-          onClick={() => {
-            toggleCamera("plate");
-            toggleCamera("face");
-          }}
-          block
-        >
-          {cameraOn ? "Tắt camera" : "Bật camera"}
-        </Button>
-
-        <Button
-          type="primary"
-          icon={<CameraOutlined />}
-          loading={loading}
-          onClick={handleSubmit}
-          block
-        >
-          Xác nhận
-        </Button>
-      </Space>
     </div>
   );
 };
